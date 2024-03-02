@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -e
+
+# install Kilosort4
+git clone https://github.com/MouseLand/Kilosort.git
+cd Kilosort
+git checkout 58d19d091e6b46105070694156f0264fc2f2e404
+pip install --no-cache-dir --ignore-installed .
+cd ..
+
+# install SpikeInterface
+git clone https://github.com/alejoe91/spikeinterface.git
+cd spikeinterface
+git checkout 6cf8701d8fac5beb7f4ccb8b4b7a68d2127e455d
+pip install --no-cache-dir --ignore-installed .[full]
+cd ..
