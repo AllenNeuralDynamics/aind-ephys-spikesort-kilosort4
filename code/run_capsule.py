@@ -110,8 +110,16 @@ if __name__ == "__main__":
         sorting_output_process_json = results_folder / f"{data_process_prefix}_{recording_name}.json"
 
         print(f"Sorting recording: {recording_name}")
-        recording = si.load_extractor(recording_folder)
-        print(recording)
+        try:
+            recording = si.load_extractor(recording_folder)
+            print(recording)
+        except ValueError as e:
+            print(f"Skippin spike sorting for {recording_name}.")
+            # create an empty result file (needed for pipeline)
+            sorting_output_folder.mkdir(parents=True, exist_ok=True)
+            error_file = sorting_output_folder / "error.txt"
+            error_file.write_text("Too many bad channels")
+            continue
 
         # we need to concatenate segments for KS
         if recording.get_num_segments() > 1:
