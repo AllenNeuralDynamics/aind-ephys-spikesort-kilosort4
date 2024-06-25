@@ -45,6 +45,13 @@ n_jobs_help = (
 n_jobs_group.add_argument("static_n_jobs", nargs="?", default="-1", help=n_jobs_help)
 n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
 
+min_drift_channels_group = parser.add_mutually_exclusive_group()
+min_drift_channels_help = (
+    "Minimum number of channels to enable Kilosort motion correction. Default is 96."
+)
+min_drift_channels_group.add_argument("static_min_channels_for_drift", nargs="?", help=min_drift_channels_help)
+min_drift_channels_group.add_argument("--min-drift-channels", default="96", help=min_drift_channels_help)
+
 params_group = parser.add_mutually_exclusive_group()
 params_file_help = "Optional json file with parameters"
 params_group.add_argument("static_params_file", nargs="?", default=None, help=params_file_help)
@@ -56,6 +63,8 @@ if __name__ == "__main__":
 
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
+    MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
+    MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
     PARAMS_FILE = args.static_params_file or args.params_file
     PARAMS_STR = args.params_str
 
@@ -124,6 +133,10 @@ if __name__ == "__main__":
         # we need to concatenate segments for KS
         if recording.get_num_segments() > 1:
             recording = si.concatenate_recordings([recording])
+
+        if recording.get_num_channels() < MIN_DRIFT_CHANNELS:
+            print("Drift correction not enabled due to low number of channels")
+            sorter_params["do_correction"] = False
 
         # run ks4
         try:
