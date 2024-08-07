@@ -115,6 +115,7 @@ if __name__ == "__main__":
 
         recording_name = ("_").join(recording_folder.name.split("_")[1:])
         binary_json_file = preprocessed_folder / f"binary_{recording_name}.json"
+        binary_pickle_file = preprocessed_folder / f"binary_{recording_name}.pkl"
         sorting_output_folder = results_folder / f"spikesorted_{recording_name}"
         sorting_output_process_json = results_folder / f"{data_process_prefix}_{recording_name}.json"
 
@@ -123,6 +124,9 @@ if __name__ == "__main__":
             if binary_json_file.is_file():
                 print(f"Loading recording from binary JSON")
                 recording = si.load_extractor(binary_json_file, base_folder=preprocessed_folder)
+            elif binary_pickle_file.is_file():
+                print(f"Loading recording from binary PKL")
+                recording = si.load_extractor(binary_pickle_file, base_folder=preprocessed_folder)
             else:
                 recording = si.load_extractor(recording_folder)
             print(recording)
