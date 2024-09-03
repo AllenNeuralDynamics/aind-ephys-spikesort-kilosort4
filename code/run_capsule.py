@@ -36,13 +36,10 @@ scratch_folder = Path("../scratch")
 # Define argument parser
 parser = argparse.ArgumentParser(description="Spike sort ecephys data with Kilosort4")
 
-n_jobs_group = parser.add_mutually_exclusive_group()
-n_jobs_help = (
-    "Number of jobs to use for parallel processing. Default is -1 (all available cores). "
-    "It can also be a float between 0 and 1 to use a fraction of available cores"
-)
-n_jobs_group.add_argument("static_n_jobs", nargs="?", default="-1", help=n_jobs_help)
-n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
+apply_motion_correction_group = parser.add_mutually_exclusive_group()
+apply_motion_correction_help = "Whether to apply Kilosort motion correction. Default: True"
+apply_motion_correction_group.add_argument("--apply-motion-correction", action="store_true", help=apply_motion_correction_help)
+apply_motion_correction_group.add_argument("static_apply_motion_correction", nargs="?", default="false", help=apply_motion_correction_help)
 
 min_drift_channels_group = parser.add_mutually_exclusive_group()
 min_drift_channels_help = (
@@ -50,6 +47,14 @@ min_drift_channels_help = (
 )
 min_drift_channels_group.add_argument("static_min_channels_for_drift", nargs="?", help=min_drift_channels_help)
 min_drift_channels_group.add_argument("--min-drift-channels", default="96", help=min_drift_channels_help)
+
+n_jobs_group = parser.add_mutually_exclusive_group()
+n_jobs_help = (
+    "Number of jobs to use for parallel processing. Default is -1 (all available cores). "
+    "It can also be a float between 0 and 1 to use a fraction of available cores"
+)
+n_jobs_group.add_argument("static_n_jobs", nargs="?", default="-1", help=n_jobs_help)
+n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
 
 params_group = parser.add_mutually_exclusive_group()
 params_file_help = "Optional json file with parameters"
@@ -60,10 +65,11 @@ params_group.add_argument("--params-str", default=None, help="Optional json stri
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    N_JOBS = args.static_n_jobs or args.n_jobs
-    N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
+    APPLY_MOTION_CORRECTION = True if args.static_apply_motion_correction and args.static_apply_motion_correction.lower() == "true" else args.apply_motion_correction
     MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
     MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
+    N_JOBS = args.static_n_jobs or args.n_jobs
+    N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
     PARAMS_FILE = args.static_params_file or args.params_file
     PARAMS_STR = args.params_str
 
@@ -144,6 +150,10 @@ if __name__ == "__main__":
 
         if recording.get_num_channels() < MIN_DRIFT_CHANNELS:
             print("Drift correction not enabled due to low number of channels")
+            sorter_params["do_correction"] = False
+
+        if not APPLY_MOTION_CORRECTION:
+            print("Drift correction disabled")
             sorter_params["do_correction"] = False
 
         # run ks4
