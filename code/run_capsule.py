@@ -48,6 +48,15 @@ min_drift_channels_help = (
 min_drift_channels_group.add_argument("static_min_channels_for_drift", nargs="?", help=min_drift_channels_help)
 min_drift_channels_group.add_argument("--min-drift-channels", default="96", help=min_drift_channels_help)
 
+clear_cache_group = parser.add_mutually_exclusive_group()
+clear_cache_group_help = (
+    "Force pytorch to free up memory reserved for its cache in between memory-intensive operations. "
+    "Note that setting `clear_cache=True` is NOT recommended unless you encounter GPU out-of-memory errors, "
+    "since this can result in slower sorting."
+)
+clear_cache_group.add_argument("--clear-cache", action="store_true", help=clear_cache_group_help)
+clear_cache_group.add_argument("static_clear_cache", nargs="?", default="false", help=clear_cache_group_help)
+
 n_jobs_group = parser.add_mutually_exclusive_group()
 n_jobs_help = (
     "Number of jobs to use for parallel processing. Default is -1 (all available cores). "
@@ -68,6 +77,7 @@ if __name__ == "__main__":
     APPLY_MOTION_CORRECTION = True if args.static_apply_motion_correction and args.static_apply_motion_correction.lower() == "true" else args.apply_motion_correction
     MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
     MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
+    CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
     PARAMS_FILE = args.static_params_file or args.params_file
@@ -155,6 +165,10 @@ if __name__ == "__main__":
         if not APPLY_MOTION_CORRECTION:
             print("Drift correction disabled")
             sorter_params["do_correction"] = False
+
+        if CLEAR_CACHE:
+            print("Setting clear_cache to True")
+            sorter_params["clear_cache"] = True
 
         # run ks4
         try:

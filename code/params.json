@@ -4,7 +4,8 @@
         "progress_bar": false
     },
     "sorter": {
-        "nblocks": 1,
+        "batch_size": 60000,
+        "nblocks": 5,
         "Th_universal": 9,
         "Th_learned": 8,
         "do_CAR": true,
@@ -15,6 +16,7 @@
         "artifact_threshold": null,
         "nskip": 25,
         "whitening_range": 32,
+        "highpass_cutoff": 300,
         "binning_depth": 5,
         "sig_interp": 20,
         "drift_smoothing": [0.5, 0.5, 0.5],
@@ -35,12 +37,17 @@
         "cluster_downsampling": 20,
         "cluster_pcs": 64,
         "x_centers": null,
-        "duplicate_spike_bins": 7,
+        "duplicate_spike_ms": 0.25,
+        "scaleproc": null,
+        "save_preprocessed_copy": false,
+        "torch_device": "auto",
+        "bad_channels": null,
+        "clear_cache": false,
+        "save_extra_vars": false,
         "do_correction": true,
         "keep_good_only": false,
-        "save_extra_kwargs": false,
         "skip_kilosort_preprocessing": false,
-        "scaleproc": null,
-        "torch_device": "auto"
+        "use_binary_file": null,
+        "delete_recording_dat": true
     }
 }
