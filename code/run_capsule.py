@@ -155,8 +155,11 @@ if __name__ == "__main__":
             continue
 
         # we need to concatenate segments for KS
+        split_segments = False
         if recording.get_num_segments() > 1:
+            print("Concatenating multi-segment recording")
             recording = si.concatenate_recordings([recording])
+            split_segments = True
 
         if recording.get_num_channels() < MIN_DRIFT_CHANNELS:
             print("Drift correction not enabled due to low number of channels")
@@ -198,7 +201,8 @@ if __name__ == "__main__":
             spikesorting_notes += f"{len(sorting.unit_ids)} after removing empty templates.\n"
 
             # split back to get original segments
-            if recording.get_num_segments() > 1:
+            if split_segments:
+                print("Splitting sorting into multiple segments")
                 sorting = si.split_sorting(sorting, recording)
 
             # save results
