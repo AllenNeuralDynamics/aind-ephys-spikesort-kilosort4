@@ -36,6 +36,11 @@ scratch_folder = Path("../scratch")
 # Define argument parser
 parser = argparse.ArgumentParser(description="Spike sort ecephys data with Kilosort4")
 
+raise_if_fails_group = parser.add_mutually_exclusive_group()
+raise_if_fails_help = "Whether to raise an error in case of failure or continue. Default True (raise)"
+raise_if_fails_group.add_argument("--raise-if-fails", action="store_true", help=raise_if_fails_help)
+raise_if_fails_group.add_argument("static_raise_if_fails", nargs="?", default="true", help=raise_if_fails_help)
+
 apply_motion_correction_group = parser.add_mutually_exclusive_group()
 apply_motion_correction_help = "Whether to apply Kilosort motion correction. Default: True"
 apply_motion_correction_group.add_argument("--apply-motion-correction", action="store_true", help=apply_motion_correction_help)
@@ -77,6 +82,7 @@ if __name__ == "__main__":
     APPLY_MOTION_CORRECTION = True if args.static_apply_motion_correction and args.static_apply_motion_correction.lower() == "true" else args.apply_motion_correction
     MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
     MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
+    RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
     CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
@@ -106,7 +112,13 @@ if __name__ == "__main__":
     sorter_params = processing_params["sorter"]
 
     ####### SPIKESORTING ########
-    print("\n\nSPIKE SORTING")
+    print(f"\n\nSPIKE SORTING WITH {SORTER_NAME.upper()}\n")
+
+    print(f"\tRAISE_IF_FAILS: {RAISE_IF_FAILS}")
+    print(f"\tAPPLY_MOTION_CORRECTION: {APPLY_MOTION_CORRECTION}")
+    print(f"\tMIN_DRIFT_CHANNELS: {MIN_DRIFT_CHANNELS}")
+    print(f"\tN_JOBS: {N_JOBS}")
+
     sorting_params = None
 
     si.set_global_job_kwargs(**job_kwargs)
@@ -212,17 +224,21 @@ if __name__ == "__main__":
                 spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
             )
         except Exception as e:
-            # save log to results
-            (sorting_output_folder).mkdir(parents=True, exist_ok=True)
-            shutil.copy(
-                spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
-            )
-            with open(sorting_output_folder / "spikeinterface_log.json", "r") as f:
-                log = json.load(f)
-            print("\n\tSPIKE SORTING FAILED!\nError log:\n")
-            pprint(log)
-            sorting_outputs = dict()
-            sorting_params = dict()
+            if RAISE_IF_FAILS:
+                print("\n\tSPIKE SORTING FAILED!")
+                raise Exception(e)
+            else:
+                # save log to results
+                (sorting_output_folder).mkdir(parents=True, exist_ok=True)
+                shutil.copy(
+                    spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
+                )
+                with open(sorting_output_folder / "spikeinterface_log.json", "r") as f:
+                    log = json.load(f)
+                print("\n\tSPIKE SORTING FAILED!\nError log:\n")
+                pprint(log)
+                sorting_outputs = dict()
+                sorting_params = dict()
 
         t_sorting_end = time.perf_counter()
         elapsed_time_sorting = np.round(t_sorting_end - t_sorting_start, 2)
