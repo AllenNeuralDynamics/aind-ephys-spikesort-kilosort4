@@ -193,6 +193,7 @@ if __name__ == "__main__":
                 output_folder=spikesorted_raw_output_folder / recording_name,
                 verbose=False,
                 delete_output_folder=True,
+                remove_existing_folder=True,
                 **sorter_params,
             )
             print(f"\tRaw sorting output: {sorting}")
