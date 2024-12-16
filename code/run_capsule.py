@@ -12,6 +12,7 @@ import shutil
 import json
 import time
 from pprint import pprint
+import logging
 from datetime import datetime, timedelta
 
 # SPIKEINTERFACE
@@ -22,6 +23,12 @@ import spikeinterface.curation as sc
 
 # AIND
 from aind_data_schema.core.processing import DataProcess
+
+try:
+    from aind_log_utils import log
+    HAVE_AIND_LOG_UTILS = True
+except ImportError:
+    HAVE_AIND_LOG_UTILS = False
 
 # LOCAL
 URL = "https://github.com/AllenNeuralDynamics/aind-ephys-spikesort-kilosort4"
@@ -130,6 +137,26 @@ if __name__ == "__main__":
         preprocessed_folder = data_folder / "preprocessing_pipeline_output_test"
     else:
         preprocessed_folder = data_folder
+
+    # look for subject and data_description JSON files
+    subject_id = "undefined"
+    session_name = "undefined"
+    for f in data_folder.iterdir():
+        # the file name is {recording_name}_subject.json
+        if "subject.json" in f.name:
+            with open(f, "r") as file:
+                subject_id = json.load(file)["subject_id"]
+        # the file name is {recording_name}_data_description.json
+        if "data_description.json" in f.name:
+            with open(f, "r") as file:
+                session_name = json.load(file)["name"]
+
+    if HAVE_AIND_LOG_UTILS:
+        log.setup_logging(
+            "Curate Ecephys",
+            mouse_id=subject_id,
+            session_name=session_name,
+        )
 
     # try results here
     spikesorted_raw_output_folder = scratch_folder / "spikesorted_raw"
