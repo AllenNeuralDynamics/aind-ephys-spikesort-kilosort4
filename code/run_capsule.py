@@ -101,7 +101,7 @@ if __name__ == "__main__":
     N_JOBS = int(N_JOBS_CO) if N_JOBS_CO is not None else N_JOBS
 
     if PARAMS_FILE is not None:
-        print(f"\nUsing custom parameter file: {PARAMS_FILE}")
+        logging.info(f"\nUsing custom parameter file: {PARAMS_FILE}")
         with open(PARAMS_FILE, "r") as f:
             processing_params = json.load(f)
     elif PARAMS_STR is not None:
@@ -119,12 +119,12 @@ if __name__ == "__main__":
     sorter_params = processing_params["sorter"]
 
     ####### SPIKESORTING ########
-    print(f"\n\nSPIKE SORTING WITH {SORTER_NAME.upper()}\n")
+    logging.info(f"\n\nSPIKE SORTING WITH {SORTER_NAME.upper()}\n")
 
-    print(f"\tRAISE_IF_FAILS: {RAISE_IF_FAILS}")
-    print(f"\tAPPLY_MOTION_CORRECTION: {APPLY_MOTION_CORRECTION}")
-    print(f"\tMIN_DRIFT_CHANNELS: {MIN_DRIFT_CHANNELS}")
-    print(f"\tN_JOBS: {N_JOBS}")
+    logging.info(f"\tRAISE_IF_FAILS: {RAISE_IF_FAILS}")
+    logging.info(f"\tAPPLY_MOTION_CORRECTION: {APPLY_MOTION_CORRECTION}")
+    logging.info(f"\tMIN_DRIFT_CHANNELS: {MIN_DRIFT_CHANNELS}")
+    logging.info(f"\tN_JOBS: {N_JOBS}")
 
     sorting_params = None
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     # check if test
     if (data_folder / "preprocessing_pipeline_output_test").is_dir():
-        print("\n*******************\n**** TEST MODE ****\n*******************\n")
+        logging.info("\n*******************\n**** TEST MODE ****\n*******************\n")
         preprocessed_folder = data_folder / "preprocessing_pipeline_output_test"
     else:
         preprocessed_folder = data_folder
@@ -174,19 +174,19 @@ if __name__ == "__main__":
         sorting_output_folder = results_folder / f"spikesorted_{recording_name}"
         sorting_output_process_json = results_folder / f"{data_process_prefix}_{recording_name}.json"
 
-        print(f"Sorting recording: {recording_name}")
+        logging.info(f"Sorting recording: {recording_name}")
         try:
             if binary_json_file.is_file():
-                print(f"Loading recording from binary JSON")
+                logging.info(f"Loading recording from binary JSON")
                 recording = si.load_extractor(binary_json_file, base_folder=preprocessed_folder)
             elif binary_pickle_file.is_file():
-                print(f"Loading recording from binary PKL")
+                logging.info(f"Loading recording from binary PKL")
                 recording = si.load_extractor(binary_pickle_file, base_folder=preprocessed_folder)
             else:
                 recording = si.load_extractor(recording_folder)
-            print(recording)
+            logging.info(recording)
         except ValueError as e:
-            print(f"Skipping spike sorting for {recording_name}.")
+            logging.info(f"Skipping spike sorting for {recording_name}.")
             # create an empty result file (needed for pipeline)
             sorting_output_folder.mkdir(parents=True, exist_ok=True)
             error_file = sorting_output_folder / "error.txt"
@@ -196,20 +196,20 @@ if __name__ == "__main__":
         # we need to concatenate segments for KS
         split_segments = False
         if recording.get_num_segments() > 1:
-            print("Concatenating multi-segment recording")
+            logging.info("Concatenating multi-segment recording")
             recording = si.concatenate_recordings([recording])
             split_segments = True
 
         if recording.get_num_channels() < MIN_DRIFT_CHANNELS:
-            print("Drift correction not enabled due to low number of channels")
+            logging.info("Drift correction not enabled due to low number of channels")
             sorter_params["do_correction"] = False
 
         if not APPLY_MOTION_CORRECTION:
-            print("Drift correction disabled")
+            logging.info("Drift correction disabled")
             sorter_params["do_correction"] = False
 
         if CLEAR_CACHE:
-            print("Setting clear_cache to True")
+            logging.info("Setting clear_cache to True")
             sorter_params["clear_cache"] = True
 
         # run ks4
@@ -223,7 +223,7 @@ if __name__ == "__main__":
                 remove_existing_folder=True,
                 **sorter_params,
             )
-            print(f"\tRaw sorting output: {sorting}")
+            logging.info(f"\tRaw sorting output: {sorting}")
             n_original_units = int(len(sorting.unit_ids))
             spikesorting_notes += f"\n- KS4 found {n_original_units} units, "
             if sorting_params is None:
@@ -237,23 +237,23 @@ if __name__ == "__main__":
             n_empty_units = n_original_units - n_non_empty_units
             # save params in output
             sorting_outputs = dict(empty_units=n_empty_units)
-            print(f"\tSorting output without empty units: {sorting}")
+            logging.info(f"\tSorting output without empty units: {sorting}")
             spikesorting_notes += f"{len(sorting.unit_ids)} after removing empty templates.\n"
 
             # split back to get original segments
             if split_segments:
-                print("Splitting sorting into multiple segments")
+                logging.info("Splitting sorting into multiple segments")
                 sorting = si.split_sorting(sorting, recording)
 
             # save results
-            print(f"\tSaving results to {sorting_output_folder}")
+            logging.info(f"\tSaving results to {sorting_output_folder}")
             sorting = sorting.save(folder=sorting_output_folder)
             shutil.copy(
                 spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
             )
         except Exception as e:
             if RAISE_IF_FAILS:
-                print("\n\tSPIKE SORTING FAILED!")
+                logging.info("\n\tSPIKE SORTING FAILED!")
                 raise Exception(e)
             else:
                 # save log to results
@@ -263,8 +263,8 @@ if __name__ == "__main__":
                 )
                 with open(sorting_output_folder / "spikeinterface_log.json", "r") as f:
                     log = json.load(f)
-                print("\n\tSPIKE SORTING FAILED!\nError log:\n")
-                pprint(log)
+                logging.info("\n\tSPIKE SORTING FAILED!\nError log:\n")
+                plogging.info(log)
                 sorting_outputs = dict()
                 sorting_params = dict()
 
@@ -288,4 +288,4 @@ if __name__ == "__main__":
 
     t_sorting_end_all = time.perf_counter()
     elapsed_time_sorting_all = np.round(t_sorting_end_all - t_sorting_start_all, 2)
-    print(f"SPIKE SORTING time: {elapsed_time_sorting_all}s")
+    logging.info(f"SPIKE SORTING time: {elapsed_time_sorting_all}s")
