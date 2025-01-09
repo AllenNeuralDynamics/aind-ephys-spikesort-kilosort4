@@ -23,10 +23,10 @@ The `code/run` script takes the following arguments:
 
 ```bash
   --raise-if-fails      Whether to raise an error in case of failure or continue. Default True (raise)
-  --apply-motion-correction
-                        Whether to apply SpykingCircus2 motion correction. Default: True
+  --skip-motion-correction
+                        Whether to skip Kilosort4 motion correction. Default: True
   --min-drift-channels MIN_DRIFT_CHANNELS
-                        Minimum number of channels to enable SpykingCircus2 motion correction. Default is 96.
+                        Minimum number of channels to enable Kilosort4 motion correction. Default is 96.
   --n-jobs N_JOBS       Number of jobs to use for parallel processing. Default is -1 (all available cores). 
                         It can also be a float between 0 and 1 to use a fraction of available cores
   --params-file PARAMS_FILE

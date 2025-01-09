@@ -48,10 +48,10 @@ raise_if_fails_help = "Whether to raise an error in case of failure or continue.
 raise_if_fails_group.add_argument("--raise-if-fails", action="store_true", help=raise_if_fails_help)
 raise_if_fails_group.add_argument("static_raise_if_fails", nargs="?", default="true", help=raise_if_fails_help)
 
-apply_motion_correction_group = parser.add_mutually_exclusive_group()
-apply_motion_correction_help = "Whether to apply Kilosort motion correction. Default: True"
-apply_motion_correction_group.add_argument("--apply-motion-correction", action="store_true", help=apply_motion_correction_help)
-apply_motion_correction_group.add_argument("static_apply_motion_correction", nargs="?", default="false", help=apply_motion_correction_help)
+skip_motion_correction_group = parser.add_mutually_exclusive_group()
+skip_motion_correction_help = "Whether to skip Kilosort motion correction. Default: False"
+skip_motion_correction_group.add_argument("--skip-motion-correction", action="store_true", help=skip_motion_correction_help)
+skip_motion_correction_group.add_argument("static_skip_motion_correction", nargs="?", help=skip_motion_correction_help)
 
 min_drift_channels_group = parser.add_mutually_exclusive_group()
 min_drift_channels_help = (
@@ -86,7 +86,7 @@ params_group.add_argument("--params-str", default=None, help="Optional json stri
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    APPLY_MOTION_CORRECTION = True if args.static_apply_motion_correction and args.static_apply_motion_correction.lower() == "true" else args.apply_motion_correction
+    SKIP_MOTION_CORRECTION = True if args.static_skip_motion_correction and args.static_skip_motion_correction.lower() == "true" else args.skip_motion_correction
     MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
     MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
     RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     logging.info(f"\n\nSPIKE SORTING WITH {SORTER_NAME.upper()}\n")
 
     logging.info(f"\tRAISE_IF_FAILS: {RAISE_IF_FAILS}")
-    logging.info(f"\tAPPLY_MOTION_CORRECTION: {APPLY_MOTION_CORRECTION}")
+    logging.info(f"\tSKIP_MOTION_CORRECTION: {SKIP_MOTION_CORRECTION}")
     logging.info(f"\tMIN_DRIFT_CHANNELS: {MIN_DRIFT_CHANNELS}")
     logging.info(f"\tN_JOBS: {N_JOBS}")
 
@@ -206,7 +206,7 @@ if __name__ == "__main__":
             logging.info("Drift correction not enabled due to low number of channels")
             sorter_params["do_correction"] = False
 
-        if not APPLY_MOTION_CORRECTION:
+        if SKIP_MOTION_CORRECTION:
             logging.info("Drift correction disabled")
             sorter_params["do_correction"] = False
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
                 with open(sorting_output_folder / "spikeinterface_log.json", "r") as f:
                     log = json.load(f)
                 logging.info("\n\tSPIKE SORTING FAILED!\nError log:\n")
-                plogging.info(log)
+                pprint(log)
                 sorting_outputs = dict()
                 sorting_params = dict()
 
