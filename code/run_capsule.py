@@ -5,6 +5,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # GENERAL IMPORTS
 import os
+import sys
 import argparse
 import numpy as np
 from pathlib import Path
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             session_name=session_name,
         )
     else:
-        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
 
     if PARAMS_FILE is not None:
         logging.info(f"\nUsing custom parameter file: {PARAMS_FILE}")
