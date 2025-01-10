@@ -116,9 +116,9 @@ if __name__ == "__main__":
 
     if HAVE_AIND_LOG_UTILS:
         log.setup_logging(
-            "Curate Ecephys",
-            mouse_id=subject_id,
-            session_name=session_name,
+            "Spikesort Kilosort4 Ecephys",
+            subject_id=subject_id,
+            asset_name=session_name,
         )
     else:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
