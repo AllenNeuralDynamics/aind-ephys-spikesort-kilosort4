@@ -1,4 +1,4 @@
-# hash:sha256:7a89be51372b02435f84b9534167f94de92441101bcf2fb261a1882a3cdebb82
+# hash:sha256:9b1c9f407a5648aad0b8cdb4c1dc85e135727c46e1d93bc39fdb4b277af913f1
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.0.18_cuda-12.0.0
 
@@ -12,6 +12,6 @@ ARG GIT_ACCESS_TOKEN
 COPY git-askpass /
 
 RUN pip install -U --no-cache-dir \
-    aind-data-schema==1.0.0 \
+    aind-data-schema==1.3.0 \
     aind-log-utils==0.2.3 \
-    spikeinterface[full]==0.101.2
+    spikeinterface[full]==0.102.1

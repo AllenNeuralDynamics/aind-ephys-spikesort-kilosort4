@@ -181,12 +181,12 @@ if __name__ == "__main__":
         try:
             if binary_json_file.is_file():
                 logging.info(f"Loading recording from binary JSON")
-                recording = si.load_extractor(binary_json_file, base_folder=preprocessed_folder)
+                recording = si.load(binary_json_file, base_folder=preprocessed_folder)
             elif binary_pickle_file.is_file():
                 logging.info(f"Loading recording from binary PKL")
-                recording = si.load_extractor(binary_pickle_file, base_folder=preprocessed_folder)
+                recording = si.load(binary_pickle_file, base_folder=preprocessed_folder)
             else:
-                recording = si.load_extractor(recording_folder)
+                recording = si.load(recording_folder)
             logging.info(recording)
         except ValueError as e:
             logging.info(f"Skipping spike sorting for {recording_name}.")
