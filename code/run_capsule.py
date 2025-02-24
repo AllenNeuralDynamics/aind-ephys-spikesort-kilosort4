@@ -255,19 +255,17 @@ if __name__ == "__main__":
                 spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
             )
         except Exception as e:
+            log_file = spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json"
+            with open(log_file, "r") as f:
+                spike_sorter_log = json.load(f)
+            logging.info("\n\tSPIKE SORTING FAILED!\nError log:\n")
+            pprint(spike_sorter_log)
             if RAISE_IF_FAILS:
-                logging.info("\n\tSPIKE SORTING FAILED!")
                 raise Exception(e)
             else:
                 # save log to results
                 (sorting_output_folder).mkdir(parents=True, exist_ok=True)
-                shutil.copy(
-                    spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
-                )
-                with open(sorting_output_folder / "spikeinterface_log.json", "r") as f:
-                    log = json.load(f)
-                logging.info("\n\tSPIKE SORTING FAILED!\nError log:\n")
-                pprint(log)
+                shutil.copy(log_file, sorting_output_folder)
                 sorting_outputs = dict()
                 sorting_params = dict()
 
