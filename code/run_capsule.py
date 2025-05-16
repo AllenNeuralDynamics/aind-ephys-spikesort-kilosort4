@@ -222,7 +222,7 @@ if __name__ == "__main__":
                 recording,
                 output_folder=spikesorted_raw_output_folder / recording_name,
                 verbose=False,
-                delete_output_folder=True,
+                delete_output_folder=False,
                 remove_existing_folder=True,
                 **sorter_params,
             )
@@ -231,6 +231,12 @@ if __name__ == "__main__":
             spikesorting_notes += f"\n- KS4 found {n_original_units} units, "
             if sorting_params is None:
                 sorting_params = sorting.sorting_info["params"]
+
+            # safe delete the output folder
+            try:
+                shutil.rmtree(spikesorted_raw_output_folder / recording_name)
+            except Exception as e:
+                logging.info(f"\tError deleting sorter output folder: {e}")
 
             # remove empty units
             sorting = sorting.remove_empty_units()
