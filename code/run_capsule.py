@@ -234,7 +234,7 @@ if __name__ == "__main__":
 
             # safe delete the output folder
             try:
-                shutil.rmtree(spikesorted_raw_output_folder / recording_name)
+                shutil.rmtree(spikesorted_raw_output_folder / recording_name / "sorter_output")
             except Exception as e:
                 logging.info(f"\tError deleting sorter output folder: {e}")
 
