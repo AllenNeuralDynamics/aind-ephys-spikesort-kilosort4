@@ -87,11 +87,15 @@ if __name__ == "__main__":
     PARAMS = args.params
 
     if PARAMS is not None:
-        if Path(PARAMS).is_file():
-            with open(PARAMS, "r") as f:
-                spikesorting_params = json.load(f)
-        else:
+        try:
+            # try to parse the JSON string first to avoid file name too long error
             spikesorting_params = json.loads(PARAMS)
+        except json.JSONDecodeError:
+            if Path(PARAMS).is_file():
+                with open(PARAMS, "r") as f:
+                    spikesorting_params = json.load(f)
+            else:
+                raise ValueError(f"Invalid parameters: {PARAMS} is not a valid JSON string or file path")
         SKIP_MOTION_CORRECTION = spikesorting_params.pop("skip_motion_correction", False)
         MIN_DRIFT_CHANNELS = spikesorting_params.pop("min_drift_channels", 96)
         RAISE_IF_FAILS = spikesorting_params.pop("raise_if_fails", True)
