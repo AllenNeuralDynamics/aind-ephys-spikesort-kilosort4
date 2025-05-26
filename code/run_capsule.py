@@ -107,6 +107,12 @@ if __name__ == "__main__":
         RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
         CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
 
+        # read default parameters from JSON file
+        default_params_file = Path(__file__).parent / "params.json"
+        if default_params_file.is_file():
+            with open(default_params_file, "r") as f:
+                spikesorting_params = json.load(f)
+
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
     # Use CO_CPUS env variable if available
