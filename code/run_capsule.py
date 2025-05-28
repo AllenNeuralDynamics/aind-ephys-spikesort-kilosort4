@@ -78,25 +78,43 @@ n_jobs_help = (
 n_jobs_group.add_argument("static_n_jobs", nargs="?", default="-1", help=n_jobs_help)
 n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
 
-params_group = parser.add_mutually_exclusive_group()
-params_file_help = "Optional json file with parameters"
-params_group.add_argument("static_params_file", nargs="?", default=None, help=params_file_help)
-params_group.add_argument("--params-file", default=None, help=params_file_help)
-params_group.add_argument("--params-str", default=None, help="Optional json string with parameters")
+parser.add_argument("--params", default=None, help="Path to the parameters file or JSON string. If given, it will override all other arguments.")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    SKIP_MOTION_CORRECTION = True if args.static_skip_motion_correction and args.static_skip_motion_correction.lower() == "true" else args.skip_motion_correction
-    MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
-    MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
-    RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
-    CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
+    PARAMS = args.params
+
+    if PARAMS is not None:
+        try:
+            # try to parse the JSON string first to avoid file name too long error
+            spikesorting_params = json.loads(PARAMS)
+        except json.JSONDecodeError:
+            if Path(PARAMS).is_file():
+                with open(PARAMS, "r") as f:
+                    spikesorting_params = json.load(f)
+            else:
+                raise ValueError(f"Invalid parameters: {PARAMS} is not a valid JSON string or file path")
+        SKIP_MOTION_CORRECTION = spikesorting_params.pop("skip_motion_correction", False)
+        MIN_DRIFT_CHANNELS = spikesorting_params.pop("min_drift_channels", 96)
+        RAISE_IF_FAILS = spikesorting_params.pop("raise_if_fails", True)
+        CLEAR_CACHE = spikesorting_params.pop("clear_cache", False)
+    else:
+        SKIP_MOTION_CORRECTION = True if args.static_skip_motion_correction and args.static_skip_motion_correction.lower() == "true" else args.skip_motion_correction
+        MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
+        MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
+        RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
+        CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
+
+        # read default parameters from JSON file
+        default_params_file = Path(__file__).parent / "params.json"
+        if default_params_file.is_file():
+            with open(default_params_file, "r") as f:
+                spikesorting_params = json.load(f)
+
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
-    PARAMS_FILE = args.static_params_file or args.params_file
-    PARAMS_STR = args.params_str
-
     # Use CO_CPUS env variable if available
     N_JOBS_CO = os.getenv("CO_CPUS")
     N_JOBS = int(N_JOBS_CO) if N_JOBS_CO is not None else N_JOBS
@@ -123,23 +141,13 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
 
-    if PARAMS_FILE is not None:
-        logging.info(f"\nUsing custom parameter file: {PARAMS_FILE}")
-        with open(PARAMS_FILE, "r") as f:
-            processing_params = json.load(f)
-    elif PARAMS_STR is not None:
-        processing_params = json.loads(PARAMS_STR)
-    else:
-        with open("params.json", "r") as f:
-            processing_params = json.load(f)
-
     data_process_prefix = "data_process_spikesorting"
 
-    job_kwargs = processing_params["job_kwargs"]
+    job_kwargs = spikesorting_params.pop("job_kwargs")
     job_kwargs["n_jobs"] = N_JOBS
     si.set_global_job_kwargs(**job_kwargs)
 
-    sorter_params = processing_params["sorter"]
+    sorter_params = spikesorting_params["sorter"]
 
     ####### SPIKESORTING ########
     logging.info(f"\n\nSPIKE SORTING WITH {SORTER_NAME.upper()}\n")
