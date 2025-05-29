@@ -1,6 +1,6 @@
-# hash:sha256:968bd1ef3dcdd810eeea6314ae26427c267777c61e69b5f3c700b1cf903abf25
+# hash:sha256:3391c168cb8e5b950b2e6028caba122dbc4ff83b656e587a170057a28d24eed9
 ARG REGISTRY_HOST
-FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.0.18_cuda-12.0.0
+FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.0.30_cuda-12.0.0
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG AWS_ACCESS_KEY_ID
