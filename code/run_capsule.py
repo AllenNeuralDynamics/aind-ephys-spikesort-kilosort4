@@ -97,9 +97,9 @@ if __name__ == "__main__":
     PARAMS_FILE = args.static_params_file or args.params_file
     PARAMS_STR = args.params_str
 
-    # Use CO_CPUS env variable if available
-    N_JOBS_CO = os.getenv("CO_CPUS")
-    N_JOBS = int(N_JOBS_CO) if N_JOBS_CO is not None else N_JOBS
+    # Use CO_CPUS/SLURM_JOB_CPUS_PER_NODE env variable if available
+    N_JOBS_EXT = os.getenv("CO_CPUS") or os.getenv("SLURM_JOB_CPUS_PER_NODE")
+    N_JOBS = int(N_JOBS_EXT) if N_JOBS_EXT is not None else N_JOBS
 
     # look for subject and data_description JSON files
     subject_id = "undefined"
