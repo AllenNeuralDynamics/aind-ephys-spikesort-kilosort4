@@ -115,8 +115,6 @@ if __name__ == "__main__":
 
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
-    PARAMS_FILE = args.static_params_file or args.params_file
-    PARAMS_STR = args.params_str
 
     # Use CO_CPUS/SLURM_JOB_CPUS_PER_NODE env variable if available
     N_JOBS_EXT = os.getenv("CO_CPUS") or os.getenv("SLURM_JOB_CPUS_PER_NODE")
