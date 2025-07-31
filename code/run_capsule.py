@@ -229,7 +229,7 @@ if __name__ == "__main__":
             sorting = ss.run_sorter(
                 SORTER_NAME,
                 recording,
-                output_folder=spikesorted_raw_output_folder / recording_name,
+                folder=spikesorted_raw_output_folder / recording_name,
                 verbose=False,
                 delete_output_folder=False,
                 remove_existing_folder=True,
