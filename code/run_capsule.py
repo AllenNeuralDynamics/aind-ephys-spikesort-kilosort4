@@ -23,7 +23,9 @@ import spikeinterface.sorters as ss
 import spikeinterface.curation as sc
 
 # AIND
-from aind_data_schema.core.processing import DataProcess
+from aind_data_schema.core.processing import DataProcess, ProcessStage
+from aind_data_schema.components.identifiers import Code
+from aind_data_schema_models.process_names import ProcessName
 
 try:
     from aind_log_utils import log
@@ -288,15 +290,19 @@ if __name__ == "__main__":
         elapsed_time_sorting = np.round(t_sorting_end - t_sorting_start, 2)
 
         spikesorting_process = DataProcess(
+            process_type=ProcessName.SPIKE_SORTING,
+            stage=ProcessStage.PROCESSING,
             name="Spike sorting",
-            software_version=VERSION,  # either release or git commit
+            experimenters=["Alessio Buccino"],
+            code=Code(
+                url=URL,
+                version=VERSION, # either release or git commit
+                parameters=sorting_params
+            ),
             start_date_time=datetime_start_sorting,
             end_date_time=datetime_start_sorting + timedelta(seconds=np.floor(elapsed_time_sorting)),
-            input_location=str(data_folder),
-            output_location=str(results_folder),
-            code_url=URL,
-            parameters=sorting_params,
-            outputs=sorting_outputs,
+            output_path=str(results_folder),
+            output_parameters=sorting_outputs,
             notes=spikesorting_notes,
         )
         with open(sorting_output_process_json, "w") as f:
