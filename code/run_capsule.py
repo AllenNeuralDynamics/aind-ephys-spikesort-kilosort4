@@ -56,10 +56,10 @@ skip_motion_correction_group.add_argument("static_skip_motion_correction", nargs
 
 min_drift_channels_group = parser.add_mutually_exclusive_group()
 min_drift_channels_help = (
-    "Minimum number of channels to enable Kilosort motion correction. Default is 96."
+    "Minimum number of channels to enable Kilosort motion correction. Default is 64."
 )
 min_drift_channels_group.add_argument("static_min_channels_for_drift", nargs="?", help=min_drift_channels_help)
-min_drift_channels_group.add_argument("--min-drift-channels", default="96", help=min_drift_channels_help)
+min_drift_channels_group.add_argument("--min-drift-channels", default="64", help=min_drift_channels_help)
 
 clear_cache_group = parser.add_mutually_exclusive_group()
 clear_cache_group_help = (
