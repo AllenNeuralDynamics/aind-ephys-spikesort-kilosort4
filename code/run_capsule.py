@@ -238,7 +238,7 @@ if __name__ == "__main__":
         binary_json_file = preprocessed_folder / f"binary_{recording_name}.json"
         binary_pickle_file = preprocessed_folder / f"binary_{recording_name}.pkl"
         sorting_output_folder = results_folder / f"spikesorted_{recording_name}"
-        motion_output_folder = results_folder / f"motion_{recording_name}"
+        motion_output_folder = results_folder / f"spikesortedmotion_{recording_name}"
         sorting_output_process_json = results_folder / f"{data_process_prefix}_{recording_name}.json"
 
         logging.info(f"Sorting recording: {recording_name}")
