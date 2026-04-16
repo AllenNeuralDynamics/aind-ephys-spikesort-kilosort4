@@ -83,6 +83,58 @@ n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
 parser.add_argument("--params", default=None, help="Path to the parameters file or JSON string. If given, it will override all other arguments.")
 
 
+def read_kilosort4_motion(
+    sorter_output_folder: str | Path,
+    recording : si.BaseRecording | None = None
+) -> si.Motion:
+    """Reads the motion information from a Kilosort4 output folder and returns a Motion object.
+    
+    Parameters
+    ----------
+    sorter_output_folder: str or Path
+        The path to the Kilosort4 output folder.
+    recording: BaseRecording, optional
+        The recording object. If provided, the temporal bins will be estimated based on the recording's
+        start and end times. If not provided, the temporal bins will be estimated based on the number
+        of batches in the ops file.
+
+    Returns
+    -------
+    Motion
+        A Motion object containing the displacement, temporal bins, and spatial bins.
+    
+    """
+    sorter_output_folder = Path(sorter_output_folder)
+    ops_file = sorter_output_folder / "ops.npy"
+    if not ops_file.is_file():
+        raise FileNotFoundError("'ops.npy' file not found!")
+    ops = np.load(ops_file, allow_pickle=True).item()
+    yblk = ops.get("yblk")
+    dshift = ops.get("dshift")
+    if yblk is None or dshift is None:
+        raise Exception("'yblk' and 'dshift' fields not found in ops file!")
+    displacement = dshift + yblk
+    spatial_bins_um = yblk
+    # estimate temporal bins
+    batch_size = ops["batch_size"]
+    fs = ops["fs"]
+    t_bin = batch_size / fs
+    if recording is not None:
+        t_start = recording.get_start_time()
+        t_end = recording.get_end_time()
+        temporal_bins_s = np.linspace(t_start + t_bin / 2, t_end - t_bin / 2)
+    else:
+        temporal_bins_s = np.arange(displacement.shape[0]) * t_bin + t_bin / 2
+
+    motion = si.Motion(
+        displacement=displacement,
+        temporal_bins_s=temporal_bins_s,
+        spatial_bins_um=spatial_bins_um
+    )
+    return motion
+
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -186,6 +238,7 @@ if __name__ == "__main__":
         binary_json_file = preprocessed_folder / f"binary_{recording_name}.json"
         binary_pickle_file = preprocessed_folder / f"binary_{recording_name}.pkl"
         sorting_output_folder = results_folder / f"spikesorted_{recording_name}"
+        motion_output_folder = results_folder / f"motion_{recording_name}"
         sorting_output_process_json = results_folder / f"{data_process_prefix}_{recording_name}.json"
 
         logging.info(f"Sorting recording: {recording_name}")
@@ -228,6 +281,7 @@ if __name__ == "__main__":
 
         # run ks4
         try:
+            logging.disable(logging.CRITICAL)
             sorting = ss.run_sorter(
                 SORTER_NAME,
                 recording,
@@ -237,11 +291,20 @@ if __name__ == "__main__":
                 remove_existing_folder=True,
                 **sorter_params,
             )
+            logging.disable(logging.NOTSET)
             logging.info(f"\tRaw sorting output: {sorting}")
             n_original_units = int(len(sorting.unit_ids))
             spikesorting_notes += f"\n- KS4 found {n_original_units} units, "
             if sorting_params is None:
                 sorting_params = sorting.sorting_info["params"]
+
+            # read KS motion
+            motion = None
+            if not SKIP_MOTION_CORRECTION:
+                motion = read_kilosort4_motion(
+                    spikesorted_raw_output_folder / recording_name / "sorter_output",
+                    recording=recording
+                )
 
             # safe delete the output folder
             try:
@@ -271,6 +334,8 @@ if __name__ == "__main__":
             shutil.copy(
                 spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json", sorting_output_folder
             )
+            if motion is not None:
+                motion.save(folder=motion_output_folder)
         except Exception as e:
             log_file = spikesorted_raw_output_folder / recording_name / "spikeinterface_log.json"
             with open(log_file, "r") as f:
