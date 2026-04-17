@@ -83,12 +83,9 @@ n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
 parser.add_argument("--params", default=None, help="Path to the parameters file or JSON string. If given, it will override all other arguments.")
 
 
-def read_kilosort4_motion(
-    sorter_output_folder: str | Path,
-    recording : si.BaseRecording | None = None
-) -> si.Motion:
+def read_kilosort4_motion(sorter_output_folder: str | Path, recording: si.BaseRecording | None = None) -> si.Motion:
     """Reads the motion information from a Kilosort4 output folder and returns a Motion object.
-    
+
     Parameters
     ----------
     sorter_output_folder: str or Path
@@ -102,7 +99,7 @@ def read_kilosort4_motion(
     -------
     Motion
         A Motion object containing the displacement, temporal bins, and spatial bins.
-    
+
     """
     sorter_output_folder = Path(sorter_output_folder)
     ops_file = sorter_output_folder / "ops.npy"
@@ -113,7 +110,7 @@ def read_kilosort4_motion(
     dshift = ops.get("dshift")
     if yblk is None or dshift is None:
         raise Exception("'yblk' and 'dshift' fields not found in ops file!")
-    displacement = dshift + yblk
+    displacement = dshift
     spatial_bins_um = yblk
     # estimate temporal bins
     batch_size = ops["batch_size"]
@@ -122,15 +119,11 @@ def read_kilosort4_motion(
     if recording is not None:
         t_start = recording.get_start_time()
         t_end = recording.get_end_time()
-        temporal_bins_s = np.linspace(t_start + t_bin / 2, t_end - t_bin / 2)
+        temporal_bins_s = np.linspace(t_start + t_bin / 2, t_end - t_bin / 2, displacement.shape[0])
     else:
         temporal_bins_s = np.arange(displacement.shape[0]) * t_bin + t_bin / 2
 
-    motion = si.Motion(
-        displacement=displacement,
-        temporal_bins_s=temporal_bins_s,
-        spatial_bins_um=spatial_bins_um
-    )
+    motion = si.Motion(displacement=displacement, temporal_bins_s=temporal_bins_s, spatial_bins_um=spatial_bins_um)
     return motion
 
 
