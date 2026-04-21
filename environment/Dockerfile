@@ -9,4 +9,5 @@ COPY git-ask-pass /
 RUN pip install -U --no-cache-dir \
     aind-data-schema==2.4.0 \
     aind-log-utils==0.2.3 \
+    scipy==1.17.1 \
     spikeinterface[full]==0.104.0
