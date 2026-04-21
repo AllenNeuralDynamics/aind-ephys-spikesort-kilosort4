@@ -1,4 +1,4 @@
-# hash:sha256:92991a9228b81e3a27b1adab24ec3c4e82990f3b6a6d32be6ddf2fcd8dbf14cf
+# hash:sha256:46e768bf274350901e1c9cba56482dfc85207193487f7050041e4791312bfaa2
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.0.30_cuda-12.0.0
 
