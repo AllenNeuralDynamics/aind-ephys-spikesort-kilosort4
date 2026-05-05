@@ -109,7 +109,8 @@ def read_kilosort4_motion(sorter_output_folder: str | Path, recording: si.BaseRe
     yblk = ops.get("yblk")
     dshift = ops.get("dshift")
     if yblk is None or dshift is None:
-        raise Exception("'yblk' and 'dshift' fields not found in ops file!")
+        warnings.warn("'yblk' and 'dshift' fields not found in ops file!")
+        return None
     displacement = dshift
     spatial_bins_um = yblk
     # estimate temporal bins
@@ -293,7 +294,7 @@ if __name__ == "__main__":
 
             # read KS motion
             motion = None
-            if not SKIP_MOTION_CORRECTION:
+            if sorter_params["do_correction"]:
                 motion = read_kilosort4_motion(
                     spikesorted_raw_output_folder / recording_name / "sorter_output",
                     recording=recording
