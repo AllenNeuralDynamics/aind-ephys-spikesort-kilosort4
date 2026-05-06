@@ -352,7 +352,7 @@ if __name__ == "__main__":
             process_type=ProcessName.SPIKE_SORTING,
             stage=ProcessStage.PROCESSING,
             name="Spike sorting",
-            experimenters=["Alessio Buccino"],
+            experimenters=["AIND Pipeline"],
             code=Code(
                 url=URL,
                 version=VERSION, # either release or git commit
