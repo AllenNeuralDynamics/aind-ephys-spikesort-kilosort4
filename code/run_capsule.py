@@ -27,12 +27,6 @@ from aind_data_schema.core.processing import DataProcess, ProcessStage
 from aind_data_schema.components.identifiers import Code
 from aind_data_schema_models.process_names import ProcessName
 
-try:
-    from aind_log_utils import log
-    HAVE_AIND_LOG_UTILS = True
-except ImportError:
-    HAVE_AIND_LOG_UTILS = False
-
 # LOCAL
 URL = "https://github.com/AllenNeuralDynamics/aind-ephys-spikesort-kilosort4"
 VERSION = "1.0"
@@ -129,7 +123,8 @@ def read_kilosort4_motion(sorter_output_folder: str | Path, recording: si.BaseRe
 
 
 
-if __name__ == "__main__":
+def run() -> None:
+    """Entrypoint for the spike sorting capsule."""
     args = parser.parse_args()
 
     PARAMS = args.params
@@ -161,6 +156,8 @@ if __name__ == "__main__":
             with open(default_params_file, "r") as f:
                 spikesorting_params = json.load(f)
 
+    LOGGING = spikesorting_params.pop("logging", None)
+
     N_JOBS = args.static_n_jobs or args.n_jobs
     N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
 
@@ -168,27 +165,40 @@ if __name__ == "__main__":
     N_JOBS_EXT = os.getenv("CO_CPUS") or os.getenv("N_JOBS_EXT")
     N_JOBS = int(N_JOBS_EXT) if N_JOBS_EXT is not None else N_JOBS
 
-    # look for subject and data_description JSON files
-    subject_id = "undefined"
-    session_name = "undefined"
-    for f in data_folder.iterdir():
-        # the file name is {recording_name}_subject.json
-        if "subject.json" in f.name:
-            with open(f, "r") as file:
-                subject_id = json.load(file)["subject_id"]
-        # the file name is {recording_name}_data_description.json
-        if "data_description.json" in f.name:
-            with open(f, "r") as file:
-                session_name = json.load(file)["name"]
-
-    if HAVE_AIND_LOG_UTILS:
-        log.setup_logging(
-            "Spikesort Kilosort4 Ecephys",
-            subject_id=subject_id,
-            asset_name=session_name,
-        )
+    # setup logging before any other logging call
+    if LOGGING is None:
+        logging.basicConfig(level="INFO", stream=sys.stdout, format="%(message)s")
     else:
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+        if LOGGING["package"] == "logging":
+            logging_cfg = LOGGING.get("logging_cfg", {})
+            logging.basicConfig(stream=sys.stdout, **logging_cfg)
+        elif LOGGING["package"] == "log-schema":
+            import log_schema
+
+            pipeline_name = LOGGING.get("pipeline_name", "AIND Ephys Pipeline")
+            acquisition_name = LOGGING.get("acquisition_name", None)
+
+            if acquisition_name is None:
+                data_description_json = list(data_folder.glob("**/data_description.json"))
+                if len(data_description_json) > 0:
+                    data_description_json = data_description_json[0]
+                    with open(data_description_json, "r") as f:
+                        data_description = json.load(f)
+                    acquisition_name = data_description["name"]
+
+            config = LOGGING.get("logging_cfg")
+            if config is not None and len(config) == 0:
+                config = None
+            log_schema.setup_logging(
+                config=config,
+                model={
+                    "pipeline_name": pipeline_name,
+                    "acquisition_name": acquisition_name,
+                    "process_name": "Spike sorting"
+                }
+            )
+
+    logging.info("Begin processing...", extra={"event_type": "stage_start"})
 
     data_process_prefix = "data_process_spikesorting"
 
@@ -370,3 +380,12 @@ if __name__ == "__main__":
     t_sorting_end_all = time.perf_counter()
     elapsed_time_sorting_all = np.round(t_sorting_end_all - t_sorting_start_all, 2)
     logging.info(f"SPIKE SORTING time: {elapsed_time_sorting_all}s")
+    logging.info("Pipeline stage completed", extra={"event_type": "stage_complete"})
+
+
+if __name__ == "__main__":
+    try:
+        run()
+    except Exception as e:
+        logging.exception("Pipeline stage failed", extra={"event_type": "stage_error"})
+        raise
