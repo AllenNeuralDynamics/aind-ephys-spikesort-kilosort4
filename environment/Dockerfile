@@ -1,6 +1,6 @@
-# hash:sha256:4f6c3fe9f051643d1780ca41ba87ff7431414b3731e6a063a6abadf935ec6186
+# hash:sha256:b0e0a79ea15d4e0d5777691457247d415240bb453afb331ec87748140e222e90
 ARG REGISTRY_HOST
-FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.0.30_cuda-12.0.0
+FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.1.7_cuda-12.0.0
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_ASKPASS
@@ -11,3 +11,7 @@ RUN pip install -U --no-cache-dir \
     aind-log-utils==0.2.3 \
     scipy==1.17.1 \
     spikeinterface[full]==0.104.7
+
+COPY postInstall /
+RUN --mount=type=secret,id=secrets . /run/secrets/secrets \
+    && /postInstall
