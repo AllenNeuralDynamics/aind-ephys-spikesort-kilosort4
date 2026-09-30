@@ -195,7 +195,7 @@ def run() -> None:
                 model={
                     "pipeline_name": pipeline_name,
                     "acquisition_name": acquisition_name,
-                    "process_name": "Spike sorting"
+                    "process_name": "Spike Sorting Kilosort4"
                 }
             )
 
