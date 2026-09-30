@@ -156,6 +156,7 @@ def run() -> None:
             with open(default_params_file, "r") as f:
                 spikesorting_params = json.load(f)
 
+    # TODO: temporary - remove from params.json when logging is distributed by pipeline
     LOGGING = spikesorting_params.pop("logging", None)
 
     N_JOBS = args.static_n_jobs or args.n_jobs
