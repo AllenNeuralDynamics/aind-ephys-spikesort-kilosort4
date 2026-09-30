@@ -180,7 +180,7 @@ def run() -> None:
             acquisition_name = LOGGING.get("acquisition_name", None)
 
             if acquisition_name is None:
-                data_description_json = list(data_folder.glob("**/data_description.json"))
+                data_description_json = list(data_folder.glob("**/*data_description.json"))
                 if len(data_description_json) > 0:
                     data_description_json = data_description_json[0]
                     with open(data_description_json, "r") as f:
