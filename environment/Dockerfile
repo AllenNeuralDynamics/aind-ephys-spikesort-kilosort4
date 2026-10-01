@@ -10,4 +10,4 @@ RUN pip install -U --no-cache-dir \
     aind-data-schema==2.8.1 \
     log-schema==0.2.10.dev1 \
     scipy==1.17.1 \
-    spikeinterface[full]==0.104.7
+    spikeinterface[full]==0.105.0
