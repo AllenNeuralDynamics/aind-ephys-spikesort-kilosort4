@@ -1,4 +1,7 @@
 {
+    "logging": {
+        "package": "log-schema"
+    },
     "job_kwargs": {
         "chunk_duration": "1s",
         "progress_bar": false
