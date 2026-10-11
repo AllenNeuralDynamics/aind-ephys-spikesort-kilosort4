@@ -15,11 +15,11 @@
 				},
 				{
 					"name": "aind-log-utils",
-					"version": "0.2.3"
+					"version": "0.2.8"
 				},
 				{
 					"name": "dartsort",
-					"version": "0.5.26"
+					"version": "0.5.30"
 				},
 				{
 					"name": "scipy",
@@ -27,7 +27,7 @@
 				},
 				{
 					"name": "spikeinterface[full]",
-					"version": "0.104.7"
+					"version": "0.105.0"
 				}
 			],
 			"options": {},
