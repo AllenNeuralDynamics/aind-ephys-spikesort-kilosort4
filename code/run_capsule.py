@@ -14,6 +14,7 @@ import json
 import time
 from pprint import pprint
 import logging
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta
 
 # SPIKEINTERFACE
@@ -76,11 +77,21 @@ clear_cache_group.add_argument("static_clear_cache", nargs="?", default="false",
 MOTION_SOURCES = ("kilosort", "preprocessing", "dartsort")
 motion_source_group = parser.add_mutually_exclusive_group()
 motion_source_help = (
-    "Drift correction: 'kilosort' uses Kilosort's own; 'preprocessing' and 'dartsort' sort on traces interpolated "
-    "with the motion estimated in preprocessing or by DARTsort's DREDGE, with Kilosort's disabled. Default: kilosort"
+    "Drift correction: 'kilosort' uses Kilosort's own estimate; 'preprocessing' and 'dartsort' use the motion "
+    "estimated in preprocessing or by DARTsort's DREDGE, applied as --motion-interpolation sets. Default: kilosort"
 )
 motion_source_group.add_argument("--motion-source", choices=MOTION_SOURCES, default="kilosort", help=motion_source_help)
 motion_source_group.add_argument("static_motion_source", nargs="?", default=None, help=motion_source_help)
+
+MOTION_INTERPOLATIONS = ("kilosort", "spikeinterface")
+motion_interpolation_help = (
+    "How an external motion estimate is applied: 'kilosort' passes it to Kilosort as its per-batch drift shifts, "
+    "interpolated with Kilosort's kernel on the GPU; 'spikeinterface' sorts traces interpolated by "
+    "spikeinterface's interpolate_motion on the CPU, which is several times slower. Default: kilosort"
+)
+parser.add_argument(
+    "--motion-interpolation", choices=MOTION_INTERPOLATIONS, default="kilosort", help=motion_interpolation_help
+)
 
 # The aind-ephys-spikesort-dartsort capsule's sorter settings, so the estimate is the one a DARTsort sort uses.
 DEFAULT_DARTSORT_MOTION_PARAMS = {
@@ -146,6 +157,44 @@ def estimate_dartsort_motion(
             f"spans {t_first:.1f}-{t_last:.1f} s"
         )
     return motion
+
+
+@contextmanager
+def kilosort_drift_from_motion(motion: si.Motion, recording: si.BaseRecording):
+    """Makes Kilosort's drift step take its shifts from `motion` instead of estimating them.
+
+    Kilosort then corrects each batch with its own kernel on the GPU. The shifts are per channel, so `nblocks` is set
+    to 1, which makes Kilosort use them as they are rather than interpolating between blocks.
+    """
+    import torch
+    from kilosort import datashift
+
+    estimate_drift = datashift.run
+
+    def run(ops, bfile, device=torch.device("cuda"), **kwargs):
+        if bfile.batch_downsampling != 1:
+            raise ValueError("an external motion estimate needs batch_downsampling = 1")
+        batch_size = ops["batch_size"]
+        batch_centers = bfile.imin + np.arange(ops["Nbatches"]) * batch_size + batch_size // 2
+        batch_centers = np.minimum(batch_centers, recording.get_num_samples() - 1)
+        times_s = recording.sample_index_to_time(batch_centers)
+        # (channel, batch) -> (batch, channel); Kilosort shifts the traces opposite to the content's displacement
+        displacement = motion.get_displacement_at_time_and_depth(times_s, ops["yc"], segment_index=0, grid=True).T
+        ops["yblk"] = ops["yc"]
+        ops["dshift"] = -displacement
+        ops["nblocks"] = 1
+        # as in datashift.run
+        xp = np.vstack((ops["xc"], ops["yc"])).T
+        Kxx = torch.from_numpy(datashift.kernel2D(xp, xp, ops["sig_interp"])).to(device)
+        ops["iKxx"] = torch.linalg.inv(Kxx + 0.01 * torch.eye(Kxx.shape[0], device=device))
+        # no detected spikes; the spike-scatter diagnostic plot expects an array
+        return ops, np.zeros((0, 6))
+
+    datashift.run = run
+    try:
+        yield
+    finally:
+        datashift.run = estimate_drift
 
 
 def read_kilosort4_motion(sorter_output_folder: str | Path, recording: si.BaseRecording | None = None) -> si.Motion:
@@ -214,6 +263,7 @@ if __name__ == "__main__":
         RAISE_IF_FAILS = spikesorting_params.pop("raise_if_fails", True)
         CLEAR_CACHE = spikesorting_params.pop("clear_cache", False)
         MOTION_SOURCE = spikesorting_params.pop("motion_source", "kilosort")
+        MOTION_INTERPOLATION = spikesorting_params.pop("motion_interpolation", "kilosort")
     else:
         SKIP_MOTION_CORRECTION = True if args.static_skip_motion_correction and args.static_skip_motion_correction.lower() == "true" else args.skip_motion_correction
         MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
@@ -221,6 +271,7 @@ if __name__ == "__main__":
         RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
         CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
         MOTION_SOURCE = args.static_motion_source or args.motion_source
+        MOTION_INTERPOLATION = args.motion_interpolation
 
         # read default parameters from JSON file
         default_params_file = Path(__file__).parent / "params.json"
@@ -231,6 +282,11 @@ if __name__ == "__main__":
     MOTION_SOURCE = MOTION_SOURCE.lower()
     if MOTION_SOURCE not in MOTION_SOURCES:
         raise ValueError(f"motion_source must be one of {MOTION_SOURCES}, got {MOTION_SOURCE!r}")
+    MOTION_INTERPOLATION = MOTION_INTERPOLATION.lower()
+    if MOTION_INTERPOLATION not in MOTION_INTERPOLATIONS:
+        raise ValueError(
+            f"motion_interpolation must be one of {MOTION_INTERPOLATIONS}, got {MOTION_INTERPOLATION!r}"
+        )
     DARTSORT_MOTION_PARAMS = DEFAULT_DARTSORT_MOTION_PARAMS | spikesorting_params.pop("dartsort_motion", {})
 
     N_JOBS = args.static_n_jobs or args.n_jobs
@@ -277,6 +333,8 @@ if __name__ == "__main__":
     logging.info(f"\tSKIP_MOTION_CORRECTION: {SKIP_MOTION_CORRECTION}")
     logging.info(f"\tMIN_DRIFT_CHANNELS: {MIN_DRIFT_CHANNELS}")
     logging.info(f"\tMOTION_SOURCE: {MOTION_SOURCE}")
+    if MOTION_SOURCE != "kilosort":
+        logging.info(f"\tMOTION_INTERPOLATION: {MOTION_INTERPOLATION}")
     if MOTION_SOURCE == "dartsort":
         logging.info(f"\tDARTSORT_MOTION_PARAMS: {DARTSORT_MOTION_PARAMS}")
     logging.info(f"\tN_JOBS: {N_JOBS}")
@@ -351,11 +409,12 @@ if __name__ == "__main__":
             logging.info("Setting clear_cache to True")
             recording_sorter_params["clear_cache"] = True
 
-        # Sorting interpolated traces with an external estimate, instead of KS4's own, removes drift correction as a
-        # confound when comparing against a sorter that uses the same estimate. Both estimates are on the
-        # segment-concatenated recording, so they apply to `recording` here.
+        # Correcting with an external estimate, instead of KS4's own, removes drift correction as a confound when
+        # comparing against a sorter that uses the same estimate. Both estimates are on the segment-concatenated
+        # recording, so they apply to `recording` here.
         recording_to_sort = recording
         external_motion = None
+        drift_context = nullcontext()
         if MOTION_SOURCE != "kilosort" and recording_sorter_params["do_correction"]:
             from spikeinterface.sortingcomponents.motion import interpolate_motion
 
@@ -379,7 +438,11 @@ if __name__ == "__main__":
                 if external_motion is None:
                     logging.info("DARTsort found no motion; falling back to KS4 drift correction")
 
-            if external_motion is not None:
+            if external_motion is not None and MOTION_INTERPOLATION == "kilosort":
+                logging.info(f"Passing {MOTION_SOURCE} motion to KS4 as its drift shifts; KS4 drift estimation skipped")
+                drift_context = kilosort_drift_from_motion(external_motion, recording)
+                spikesorting_notes += f"\n- KS4 drift correction applied the {MOTION_SOURCE} motion estimate.\n"
+            elif external_motion is not None:
                 # the presets keep every channel (force_extrapolate), so KS4 sees the same probe as the rest of the pipeline
                 if interpolate_motion_kwargs is None:
                     interpolate_motion_kwargs = spre.get_motion_parameters_preset(motion_preset)["interpolate_motion_kwargs"]
@@ -398,15 +461,16 @@ if __name__ == "__main__":
         # run ks4
         try:
             logging.disable(logging.CRITICAL)
-            sorting = ss.run_sorter(
-                SORTER_NAME,
-                recording_to_sort,
-                folder=spikesorted_raw_output_folder / recording_name,
-                verbose=False,
-                delete_output_folder=False,
-                remove_existing_folder=True,
-                **recording_sorter_params,
-            )
+            with drift_context:
+                sorting = ss.run_sorter(
+                    SORTER_NAME,
+                    recording_to_sort,
+                    folder=spikesorted_raw_output_folder / recording_name,
+                    verbose=False,
+                    delete_output_folder=False,
+                    remove_existing_folder=True,
+                    **recording_sorter_params,
+                )
             logging.disable(logging.NOTSET)
             logging.info(f"\tRaw sorting output: {sorting}")
             n_original_units = int(len(sorting.unit_ids))
@@ -414,10 +478,11 @@ if __name__ == "__main__":
             if sorting_params is None:
                 sorting_params = sorting.sorting_info["params"]
                 sorting_params["motion_source"] = MOTION_SOURCE
+                sorting_params["motion_interpolation"] = MOTION_INTERPOLATION
 
             # the motion the traces were corrected with, from KS or external
             motion = external_motion
-            if recording_sorter_params["do_correction"]:
+            if external_motion is None and recording_sorter_params["do_correction"]:
                 motion = read_kilosort4_motion(
                     spikesorted_raw_output_folder / recording_name / "sorter_output",
                     recording=recording
