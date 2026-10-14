@@ -1,4 +1,4 @@
-# hash:sha256:6751501bb0717a0a17d517ae2a9128832cdd86f9a9cc99afbf2efe963dbd870f
+# hash:sha256:ea095fc2ce5793dc139a9ccd64e390ee231c9d86944239b4c2154cc0908dbf57
 ARG REGISTRY_HOST
 FROM $REGISTRY_HOST/codeocean/kilosort4-base:4.1.7_cuda-12.0.0
 
@@ -10,4 +10,4 @@ RUN pip install -U --no-cache-dir \
     aind-data-schema==2.8.1 \
     log-schema==0.2.10.dev1 \
     scipy==1.17.1 \
-    spikeinterface[full]==0.105.0
+    spikeinterface[full]==0.105.2
