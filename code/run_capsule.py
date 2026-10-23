@@ -139,7 +139,7 @@ def run() -> None:
             else:
                 raise ValueError(f"Invalid parameters: {PARAMS} is not a valid JSON string or file path")
         SKIP_MOTION_CORRECTION = spikesorting_params.pop("skip_motion_correction", False)
-        MIN_DRIFT_CHANNELS = spikesorting_params.pop("min_drift_channels", 96)
+        MIN_DRIFT_CHANNELS = int(spikesorting_params.pop("min_drift_channels", 96))
         RAISE_IF_FAILS = spikesorting_params.pop("raise_if_fails", True)
         CLEAR_CACHE = spikesorting_params.pop("clear_cache", False)
     else:
