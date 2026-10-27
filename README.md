@@ -19,22 +19,7 @@ the `data/preprocessed_{recording_name}` folder.
 
 ### Parameters
 
-The `code/run` script takes the following arguments:
-
-```bash
-  --raise-if-fails      Whether to raise an error in case of failure or continue. Default True (raise)
-  --skip-motion-correction
-                        Whether to skip Kilosort4 motion correction. Default: True
-  --min-drift-channels MIN_DRIFT_CHANNELS
-                        Minimum number of channels to enable Kilosort4 motion correction. Default is 96.
-  --n-jobs N_JOBS       Number of jobs to use for parallel processing. Default is -1 (all available cores). 
-                        It can also be a float between 0 and 1 to use a fraction of available cores
-  --params-file PARAMS_FILE
-                        Optional json file with parameters
-  --params-str PARAMS_STR
-                        Optional json string with parameters
-
-```
+Parameters are read from a `params.json` file that must be in the root folder of the capsule (next to `code/`, i.e. `../params.json` from `code/`), using the `spikesorting.kilosort4` section (`skip_motion_correction`, `min_drift_channels`, `raise_if_fails`, `n_jobs`, `job_kwargs`, `sorter`, ...) and the optional top-level `logging` section.
 
 A list of spike sorting parameters can be found in the `code/params.json`:
 
