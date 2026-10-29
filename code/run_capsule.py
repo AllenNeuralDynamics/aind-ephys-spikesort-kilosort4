@@ -6,7 +6,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 # GENERAL IMPORTS
 import os
 import sys
-import argparse
 import numpy as np
 from pathlib import Path
 import shutil
@@ -36,44 +35,7 @@ data_folder = Path("../data")
 results_folder = Path("../results")
 scratch_folder = Path("../scratch")
 
-# Define argument parser
-parser = argparse.ArgumentParser(description="Spike sort ecephys data with Kilosort4")
-
-raise_if_fails_group = parser.add_mutually_exclusive_group()
-raise_if_fails_help = "Whether to raise an error in case of failure or continue. Default True (raise)"
-raise_if_fails_group.add_argument("--raise-if-fails", action="store_true", help=raise_if_fails_help)
-raise_if_fails_group.add_argument("static_raise_if_fails", nargs="?", default="true", help=raise_if_fails_help)
-
-skip_motion_correction_group = parser.add_mutually_exclusive_group()
-skip_motion_correction_help = "Whether to skip Kilosort motion correction. Default: False"
-skip_motion_correction_group.add_argument("--skip-motion-correction", action="store_true", help=skip_motion_correction_help)
-skip_motion_correction_group.add_argument("static_skip_motion_correction", nargs="?", help=skip_motion_correction_help)
-
-min_drift_channels_group = parser.add_mutually_exclusive_group()
-min_drift_channels_help = (
-    "Minimum number of channels to enable Kilosort motion correction. Default is 64."
-)
-min_drift_channels_group.add_argument("static_min_channels_for_drift", nargs="?", help=min_drift_channels_help)
-min_drift_channels_group.add_argument("--min-drift-channels", default="64", help=min_drift_channels_help)
-
-clear_cache_group = parser.add_mutually_exclusive_group()
-clear_cache_group_help = (
-    "Force pytorch to free up memory reserved for its cache in between memory-intensive operations. "
-    "Note that setting `clear_cache=True` is NOT recommended unless you encounter GPU out-of-memory errors, "
-    "since this can result in slower sorting."
-)
-clear_cache_group.add_argument("--clear-cache", action="store_true", help=clear_cache_group_help)
-clear_cache_group.add_argument("static_clear_cache", nargs="?", default="false", help=clear_cache_group_help)
-
-n_jobs_group = parser.add_mutually_exclusive_group()
-n_jobs_help = (
-    "Number of jobs to use for parallel processing. Default is -1 (all available cores). "
-    "It can also be a float between 0 and 1 to use a fraction of available cores"
-)
-n_jobs_group.add_argument("static_n_jobs", nargs="?", default="-1", help=n_jobs_help)
-n_jobs_group.add_argument("--n-jobs", default="-1", help=n_jobs_help)
-
-parser.add_argument("--params", default=None, help="Path to the parameters file or JSON string. If given, it will override all other arguments.")
+PARAMS_FILE = Path("../params.json")
 
 
 def read_kilosort4_motion(sorter_output_folder: str | Path, recording: si.BaseRecording | None = None) -> si.Motion:
@@ -124,69 +86,38 @@ def read_kilosort4_motion(sorter_output_folder: str | Path, recording: si.BaseRe
 
 def run() -> None:
     """Entrypoint for the spike sorting capsule."""
-    args = parser.parse_args()
+    if not PARAMS_FILE.is_file():
+        raise ValueError(f"Parameters file {PARAMS_FILE} not found")
+    with open(PARAMS_FILE, "r") as f:
+        full_params = json.load(f)
+    spikesorting_params = full_params["spikesorting"]["kilosort4"]
+    logging_params = full_params.get("logging", None)
 
-    PARAMS = args.params
-
-    if PARAMS is not None:
-        try:
-            # try to parse the JSON string first to avoid file name too long error
-            spikesorting_params = json.loads(PARAMS)
-        except json.JSONDecodeError:
-            if Path(PARAMS).is_file():
-                with open(PARAMS, "r") as f:
-                    spikesorting_params = json.load(f)
-            else:
-                raise ValueError(f"Invalid parameters: {PARAMS} is not a valid JSON string or file path")
-        SKIP_MOTION_CORRECTION = spikesorting_params.pop("skip_motion_correction", False)
-        MIN_DRIFT_CHANNELS = int(spikesorting_params.pop("min_drift_channels", 96))
-        RAISE_IF_FAILS = spikesorting_params.pop("raise_if_fails", True)
-        CLEAR_CACHE = spikesorting_params.pop("clear_cache", False)
-    else:
-        SKIP_MOTION_CORRECTION = True if args.static_skip_motion_correction and args.static_skip_motion_correction.lower() == "true" else args.skip_motion_correction
-        MIN_DRIFT_CHANNELS = args.static_min_channels_for_drift or args.min_drift_channels
-        MIN_DRIFT_CHANNELS = int(MIN_DRIFT_CHANNELS)
-        RAISE_IF_FAILS = True if args.static_raise_if_fails and args.static_raise_if_fails.lower() == "true" else args.raise_if_fails
-        CLEAR_CACHE = True if args.static_clear_cache and args.static_clear_cache.lower() == "true" else args.clear_cache
-
-        # read default parameters from JSON file
-        default_params_file = Path(__file__).parent / "params.json"
-        if default_params_file.is_file():
-            with open(default_params_file, "r") as f:
-                spikesorting_params = json.load(f)
-
-    # TODO: temporary - remove from params.json when logging is distributed by pipeline
-    LOGGING = spikesorting_params.pop("logging", None)
-
-    N_JOBS = args.static_n_jobs or args.n_jobs
-    N_JOBS = int(N_JOBS) if not N_JOBS.startswith("0.") else float(N_JOBS)
+    SKIP_MOTION_CORRECTION = spikesorting_params.get("skip_motion_correction", False)
+    MIN_DRIFT_CHANNELS = int(spikesorting_params.get("min_drift_channels", 96))
+    RAISE_IF_FAILS = spikesorting_params.get("raise_if_fails", True)
+    CLEAR_CACHE = spikesorting_params.get("clear_cache", False)
+    N_JOBS = spikesorting_params.get("n_jobs", -1)
+    N_JOBS = float(N_JOBS) if isinstance(N_JOBS, str) and N_JOBS.startswith("0.") else int(N_JOBS)
 
     # Use CO_CPUS/N_JOBS_EXT env variable if available
     N_JOBS_EXT = os.getenv("CO_CPUS") or os.getenv("N_JOBS_EXT")
     N_JOBS = int(N_JOBS_EXT) if N_JOBS_EXT is not None else N_JOBS
 
     # setup logging before any other logging call
-    if LOGGING is None:
+    if logging_params is None:
         logging.basicConfig(level="INFO", stream=sys.stdout, format="%(message)s")
     else:
-        if LOGGING["package"] == "logging":
-            logging_cfg = LOGGING.get("logging_cfg", {})
+        if logging_params["package"] == "logging":
+            logging_cfg = logging_params.get("logging_cfg", {})
             logging.basicConfig(stream=sys.stdout, **logging_cfg)
-        elif LOGGING["package"] == "log-schema":
+        elif logging_params["package"] == "log-schema":
             import log_schema
 
-            pipeline_name = LOGGING.get("pipeline_name", "AIND Ephys Pipeline")
-            acquisition_name = LOGGING.get("acquisition_name", None)
+            pipeline_name = logging_params.get("pipeline_name", "AIND Ephys Pipeline")
+            acquisition_name = logging_params.get("acquisition_name", "unknown")
 
-            if acquisition_name is None:
-                data_description_json = list(data_folder.glob("**/*data_description.json"))
-                if len(data_description_json) > 0:
-                    data_description_json = data_description_json[0]
-                    with open(data_description_json, "r") as f:
-                        data_description = json.load(f)
-                    acquisition_name = data_description["name"]
-
-            config = LOGGING.get("logging_cfg")
+            config = logging_params.get("logging_cfg")
             if config is not None and len(config) == 0:
                 config = None
             log_schema.setup_logging(
@@ -202,7 +133,7 @@ def run() -> None:
 
     data_process_prefix = "data_process_spikesorting"
 
-    job_kwargs = spikesorting_params.pop("job_kwargs")
+    job_kwargs = spikesorting_params["job_kwargs"]
     job_kwargs["n_jobs"] = N_JOBS
     si.set_global_job_kwargs(**job_kwargs)
 
