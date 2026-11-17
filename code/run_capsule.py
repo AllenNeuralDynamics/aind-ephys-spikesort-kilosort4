@@ -133,7 +133,7 @@ def run() -> None:
 
     data_process_prefix = "data_process_spikesorting"
 
-    job_kwargs = spikesorting_params["job_kwargs"]
+    job_kwargs = {**full_params.get("global_job_kwargs", {}), **spikesorting_params.get("job_kwargs", {})}
     job_kwargs["n_jobs"] = N_JOBS
     si.set_global_job_kwargs(**job_kwargs)
 
